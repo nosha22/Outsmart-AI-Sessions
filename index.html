@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prompt &amp; Circumstance — AI Sessions Board</title>
+<style>
+  :root {
+    --bg: #0f1117; --panel: #171a23; --panel-2: #1e222d; --line: #2a2f3d;
+    --ink: #e8eaf0; --ink-dim: #9aa3b8; --ink-faint: #6b7488;
+    --share: #4b7bec; --share-bg: #1a2740;
+    --learn: #e8a33d; --learn-bg: #392c17;
+    --ok: #3aa76d; --danger: #d9534f;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f6f7fa; --panel: #ffffff; --panel-2: #f0f2f7; --line: #dfe3ec;
+      --ink: #1b1f2a; --ink-dim: #5b6478; --ink-faint: #8a93a6;
+      --share-bg: #e8f0fe; --learn-bg: #fff4e0;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  }
+  header {
+    padding: 22px 24px 18px; border-bottom: 1px solid var(--line);
+    background: var(--panel); position: sticky; top: 0; z-index: 20;
+  }
+  .bar { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; max-width: 1180px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 0; letter-spacing: -0.01em; }
+  h1 span { color: var(--ink-faint); font-weight: 400; }
+  .session-meta { margin-left: auto; display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--ink-dim); }
+  .session-meta input {
+    background: var(--panel-2); border: 1px solid var(--line); color: var(--ink);
+    border-radius: 6px; padding: 5px 9px; font: inherit; font-size: 13px;
+  }
+  main { max-width: 1180px; margin: 0 auto; padding: 22px 24px 80px; }
+  .intro { color: var(--ink-dim); font-size: 14px; margin: 0 0 22px; max-width: 70ch; }
+
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+  @media (max-width: 900px) { .cols { grid-template-columns: 1fr; } }
+
+  .col { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+  .col-head { padding: 14px 16px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 10px; }
+  .col-head h2 { font-size: 15px; margin: 0; }
+  .col-head .sub { font-size: 12.5px; color: var(--ink-dim); font-weight: 400; }
+  .col.share .col-head { background: var(--share-bg); }
+  .col.learn .col-head { background: var(--learn-bg); }
+  .pill { font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 999px; margin-left: auto; }
+  .col.share .pill { background: var(--share); color: #fff; }
+  .col.learn .pill { background: var(--learn); color: #2a1f0c; }
+
+  form { padding: 14px 16px; border-bottom: 1px solid var(--line); display: grid; gap: 9px; }
+  input[type=text], textarea, select {
+    width: 100%; background: var(--panel-2); border: 1px solid var(--line);
+    color: var(--ink); border-radius: 7px; padding: 9px 11px; font: inherit; font-size: 14px;
+  }
+  textarea { resize: vertical; min-height: 58px; }
+  input:focus, textarea:focus, select:focus { outline: 2px solid var(--share); outline-offset: -1px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+  button {
+    background: var(--share); color: #fff; border: 0; border-radius: 7px;
+    padding: 9px 14px; font: inherit; font-weight: 600; font-size: 14px; cursor: pointer;
+  }
+  .col.learn button { background: var(--learn); color: #2a1f0c; }
+  button:hover { filter: brightness(1.08); }
+  button.ghost {
+    background: transparent; color: var(--ink-dim); border: 1px solid var(--line); font-weight: 500;
+  }
+  button.ghost:hover { color: var(--ink); border-color: var(--ink-faint); filter: none; }
+
+  ul { list-style: none; margin: 0; padding: 8px; display: grid; gap: 8px; min-height: 60px; }
+  li {
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px;
+    padding: 11px 12px; display: grid; grid-template-columns: auto 1fr auto; gap: 11px; align-items: start;
+  }
+  li.done { opacity: 0.5; }
+  li.done .title { text-decoration: line-through; }
+  .vote {
+    display: grid; justify-items: center; gap: 1px; background: var(--bg);
+    border: 1px solid var(--line); border-radius: 7px; padding: 4px 8px; cursor: pointer;
+    min-width: 40px; user-select: none;
+  }
+  .vote:hover { border-color: var(--learn); }
+  .vote.voted { border-color: var(--learn); background: var(--learn-bg); }
+  .vote .n { font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums; }
+  .vote .c { font-size: 9px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: .05em; }
+  .title { font-weight: 600; font-size: 14.5px; }
+  .desc { color: var(--ink-dim); font-size: 13px; margin-top: 3px; white-space: pre-wrap; }
+  .meta { color: var(--ink-faint); font-size: 12px; margin-top: 5px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .tag { background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; }
+  .acts { display: grid; gap: 4px; }
+  .acts button { background: transparent; color: var(--ink-faint); border: 0; padding: 2px 5px; font-size: 12px; font-weight: 500; }
+  .acts button:hover { color: var(--ink); filter: none; }
+  .acts button.del:hover { color: var(--danger); }
+  .empty { color: var(--ink-faint); font-size: 13px; text-align: center; padding: 22px 12px; font-style: italic; }
+
+  .toolbar {
+    max-width: 1180px; margin: 22px auto 0; display: flex; gap: 8px; flex-wrap: wrap;
+    align-items: center; padding-top: 18px; border-top: 1px solid var(--line);
+  }
+  .toolbar .note { color: var(--ink-faint); font-size: 12.5px; margin-left: auto; }
+  .agenda {
+    margin-top: 20px; background: var(--panel); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 16px 18px;
+  }
+  .agenda h3 { margin: 0 0 10px; font-size: 14px; }
+  .linkbtn {
+    background: transparent; border: 1px solid var(--line); color: var(--ink-dim);
+    border-radius: 6px; padding: 4px 8px; font: inherit; font-size: 13px; cursor: pointer;
+  }
+  .linkbtn:hover { color: var(--ink); border-color: var(--ink-faint); }
+  .conn {
+    font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 999px;
+    background: var(--panel-2); color: var(--ink-faint); border: 1px solid var(--line);
+    white-space: nowrap;
+  }
+  .conn.live { background: #12341f; color: #6ee7a0; border-color: #1f6b3c; }
+  .conn.err  { background: #3a1620; color: #ff9db0; border-color: #7a2233; }
+  .conn.busy { background: #33290f; color: #ffd98a; border-color: #6b551f; }
+  .setup {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 16px 18px; margin-bottom: 18px;
+  }
+  .setup h3 { margin: 0 0 8px; font-size: 14px; }
+  .setup .opt { color: var(--ink-faint); font-weight: 400; font-size: 12px; }
+  .setuprow { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .setuprow input {
+    flex: 1 1 320px; background: var(--panel-2); border: 1px solid var(--line); color: var(--ink);
+    border-radius: 7px; padding: 9px 11px; font: 12.5px/1.4 ui-monospace, Menlo, monospace;
+  }
+  .setuprow input:focus { outline: 2px solid var(--share); outline-offset: -1px; }
+  .setupnote { font-size: 12.5px; color: var(--ink-dim); margin-top: 9px; min-height: 18px; line-height: 1.6; }
+  .setupnote.ok { color: #6ee7a0; }
+  .setupnote.bad { color: #ff9db0; }
+  .filewarn {
+    background: #3a1620; border: 1px solid #7a2233; color: #ffd7de;
+    border-radius: var(--radius); padding: 12px 15px; margin-bottom: 16px; font-size: 13.5px; line-height: 1.6;
+  }
+  .filewarn code {
+    background: rgba(0,0,0,.35); padding: 1px 5px; border-radius: 4px; font-size: 12.5px;
+  }
+  .sheethelp { color: var(--ink-dim); font-size: 13px; margin: 0 0 10px; line-height: 1.6; }
+  #csvText {
+    width: 100%; background: var(--panel-2); border: 1px solid var(--line); color: var(--ink);
+    border-radius: 7px; padding: 10px 12px; font: 12.5px/1.5 ui-monospace, Menlo, monospace;
+    resize: vertical;
+  }
+  #csvText:focus { outline: 2px solid var(--share); outline-offset: -1px; }
+  .sheetrow { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+  .sheetrow .note { color: var(--ink-faint); font-size: 12.5px; margin-left: auto; }
+  .agenda pre {
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 7px;
+    padding: 12px; overflow-x: auto; font-size: 12.5px; margin: 0; white-space: pre-wrap;
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <h1>Prompt &amp; Circumstance <span>· AI Sessions Board</span></h1>
+    <div class="session-meta">
+      <label for="sessDate">Session</label>
+      <input type="text" id="sessDate" placeholder="e.g. 15 Sep 2026" size="13">
+      <label for="who">You</label>
+      <input type="text" id="who" placeholder="your name" size="12">
+      <button class="linkbtn" id="setupBtn" title="Connect to a Google Sheet">⚙</button>
+      <span class="conn" id="conn" title="">local only</span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <p class="intro">
+    Two columns, one rule: everyone puts something somewhere. <strong>Share</strong> if you have a
+    thing you've tried, read, or built. <strong>Learn</strong> if there's something you want someone
+    to explain. Vote on the learn requests — the top ones become next session's agenda.
+    Data is saved in this browser only; use <em>Export</em> to hand it to the next facilitator.
+  </p>
+
+  <div class="setup" id="setupBox" hidden>
+    <h3>Connect to a Google Sheet <span class="opt">optional</span></h3>
+    <p class="sheethelp">
+      Paste the <strong>Web app URL</strong> from your Apps Script deployment. Once connected, every
+      submission, vote and status change is written straight to the Sheet — everyone opening this
+      board sees the same live data. Leave it blank to keep the board local to this browser.
+      Setup takes about 10 minutes: see <em>apps-script/SETUP.md</em>.
+    </p>
+    <div class="setuprow">
+      <input type="text" id="apiUrl" placeholder="https://script.google.com/macros/s/AKfy…/exec">
+      <button class="ghost" id="apiSaveBtn">Connect</button>
+      <button class="ghost" id="apiTestBtn">Test</button>
+      <button class="ghost" id="apiClearBtn">Disconnect</button>
+      <button class="ghost" id="apiResetBtn">Use built-in</button>
+      <button class="ghost" id="setupCloseBtn">Close</button>
+    </div>
+    <div class="setupnote" id="apiNote"></div>
+  </div>
+
+  <div class="cols">
+    <section class="col share">
+      <div class="col-head">
+        <h2>I want to share</h2>
+        <div class="sub">— an article, a project, a failure</div>
+        <span class="pill" id="shareCount">0</span>
+      </div>
+      <form id="shareForm">
+        <input type="text" id="sTitle" placeholder="Title — e.g. 'I let an agent refactor our test suite'" required>
+        <textarea id="sDesc" placeholder="One or two lines: what it is, and what people will take away."></textarea>
+        <div class="row2">
+          <input type="text" id="sWho" placeholder="Your name">
+          <select id="sFormat">
+            <option value="Lightning 5 min">Lightning — 5 min</option>
+            <option value="Demo 10 min">Demo — 10 min</option>
+            <option value="Deep dive 20 min">Deep dive — 20 min</option>
+            <option value="Just a link">Just a link — no talk</option>
+          </select>
+        </div>
+        <button type="submit">Add to share list</button>
+      </form>
+      <ul id="shareList"></ul>
+    </section>
+
+    <section class="col learn">
+      <div class="col-head">
+        <h2>I want to learn</h2>
+        <div class="sub">— ask, and vote on others' asks</div>
+        <span class="pill" id="learnCount">0</span>
+      </div>
+      <form id="learnForm">
+        <input type="text" id="lTitle" placeholder="Question — e.g. 'How do I stop it hallucinating APIs?'" required>
+        <textarea id="lDesc" placeholder="Optional: context, what you've already tried."></textarea>
+        <div class="row2">
+          <input type="text" id="lWho" placeholder="Your name (optional)">
+          <select id="lUrgency">
+            <option value="Curious">Curious</option>
+            <option value="Blocked on it">Blocked on it</option>
+            <option value="Team-wide need">Team-wide need</option>
+          </select>
+        </div>
+        <button type="submit">Add request</button>
+      </form>
+      <ul id="learnList"></ul>
+    </section>
+  </div>
+
+  <div class="toolbar">
+    <button class="ghost" id="sheetBtn">Import from Google Sheet</button>
+    <button class="ghost" id="csvOutBtn">Export to Google Sheet</button>
+    <button class="ghost" id="exportBtn">Export JSON</button>
+    <button class="ghost" id="importBtn">Import JSON</button>
+    <button class="ghost" id="agendaBtn">Generate agenda</button>
+    <button class="ghost" id="clearBtn">Clear board</button>
+    <input type="file" id="fileInput" accept="application/json" hidden>
+    <input type="file" id="csvInput" accept=".csv,text/csv" hidden>
+    <span class="note" id="saveNote"></span>
+  </div>
+
+  <div class="agenda" id="csvOutBox" hidden>
+    <h3>Export to Google Sheet</h3>
+    <p class="sheethelp">
+      <strong>Copy to clipboard</strong>, then paste into a Sheet — it splits into columns
+      automatically. Or <strong>download the CSV</strong> and use
+      <em>File &rsaquo; Import</em> in Sheets. Votes, status and formats are all included.
+    </p>
+    <div class="sheetrow">
+      <button class="ghost" id="csvCopyBtn">📋 Copy to clipboard</button>
+      <button class="ghost" id="csvDownBtn">⬇ Download CSV</button>
+      <button class="ghost" id="csvOutCloseBtn">Close</button>
+      <span class="note" id="csvOutNote"></span>
+    </div>
+    <pre id="csvOutPreview"></pre>
+  </div>
+
+  <div class="agenda" id="sheetBox" hidden>
+    <h3>Import from Google Forms / Sheets</h3>
+    <p class="sheethelp">
+      In your Sheet: <strong>File &rsaquo; Download &rsaquo; CSV</strong>, then drop the file below —
+      or just select the rows in the Sheet, copy, and paste into the box. Header row is detected
+      automatically. Existing items are kept; duplicates are skipped.
+    </p>
+    <textarea id="csvText" rows="6" placeholder="Paste rows from your Google Sheet here (Ctrl/Cmd+V)…"></textarea>
+    <div class="sheetrow">
+      <button class="ghost" id="csvFileBtn">Choose CSV file…</button>
+      <button class="ghost" id="csvGoBtn">Import pasted rows</button>
+      <button class="ghost" id="sheetCloseBtn">Close</button>
+      <span class="note" id="csvNote"></span>
+    </div>
+    <pre id="csvPreview" hidden></pre>
+  </div>
+
+  <div class="agenda" id="agendaBox" hidden>
+    <h3>Draft agenda — copy into the invite</h3>
+    <pre id="agendaOut"></pre>
+  </div>
+</main>
+
+<script>
+(function () {
+  'use strict';
+  /* ============================================================
+   *  ▼▼▼  PASTE YOUR APPS SCRIPT URL BETWEEN THE QUOTES  ▼▼▼
+   *
+   *  Do this once, before sharing this file with your department.
+   *  Everyone who opens it is then connected automatically —
+   *  nobody needs to paste anything.
+   *
+   *  It should look like:
+   *    https://script.google.com/macros/s/AKfycb..../exec
+   * ============================================================ */
+  var SHEET_URL = 'https://script.google.com/a/macros/visma.com/s/AKfycbyjMqEg4hQvcmLtOi4kH3D0Kug_6_PLnOxB4erJHhkxhYHPZ3M_9g1lYzk3N-VzYW58ng/exec';
+  /* ============================================================ */
+
+  var KEY = 'ai-sessions-board-v1';
+  var URLKEY = 'ai-sessions-api-url';
+  var OUTKEY = 'ai-sessions-outbox';
+  var state = { session: '', items: [] };
+
+  /* ================= Google Sheet sync =================
+   * When an Apps Script Web App URL is configured, every add/vote/done/delete
+   * is POSTed to it and appended to the Sheet. Writes are queued in an outbox
+   * so a failed request is retried rather than silently lost, and the board
+   * keeps working offline (localStorage stays the source of truth locally).
+   *
+   * Requests use Content-Type: text/plain to avoid a CORS preflight —
+   * Apps Script does not respond to OPTIONS, so application/json would fail.
+   */
+  var api = {
+    url: '',
+    outbox: [],
+    flushing: false,
+
+    init: function () {
+      var saved = '';
+      try {
+        saved = localStorage.getItem(URLKEY) || '';
+        this.outbox = JSON.parse(localStorage.getItem(OUTKEY) || '[]');
+      } catch (e) { this.outbox = []; }
+      // A URL baked into the file is the default for everyone who opens it.
+      // Anything set through the ⚙ panel overrides it on this browser only.
+      var everSet = false;
+      try { everSet = localStorage.getItem(URLKEY) !== null; } catch (e) {}
+      this.url = everSet ? saved : (SHEET_URL || '').trim();
+      this.builtIn = !everSet && !!(SHEET_URL || '').trim();
+    },
+    on: function () { return !!this.url; },
+    setUrl: function (u) {
+      this.url = (u || '').trim();
+      this.builtIn = false;
+      try {
+        if (this.url) localStorage.setItem(URLKEY, this.url);
+        else localStorage.setItem(URLKEY, '');   // '' = deliberately disconnected here
+      } catch (e) {}
+      status();
+    },
+    saveOutbox: function () {
+      try { localStorage.setItem(OUTKEY, JSON.stringify(this.outbox)); } catch (e) {}
+    },
+
+    post: function (payload) {
+      return fetch(this.url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload),
+        redirect: 'follow'
+      }).then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      }).then(function (d) {
+        if (!d || d.ok !== true) throw new Error((d && d.error) || 'Sheet rejected the write');
+        return d;
+      });
+    },
+
+    /** Queue a write, then try to flush. Capped so a broken deployment can't fill storage. */
+    send: function (payload) {
+      if (!this.on()) return;
+      this.outbox.push(payload);
+      if (this.outbox.length > 200) this.outbox = this.outbox.slice(-200);
+      this.saveOutbox();
+      this.flush();
+    },
+
+    flush: function () {
+      var self = this;
+      if (!this.on() || this.flushing || !this.outbox.length) return;
+      this.flushing = true;
+      status();
+      var next = this.outbox[0];
+      this.post(next).then(function () {
+        self.outbox.shift();
+        self.saveOutbox();
+        self.flushing = false;
+        status();
+        if (self.outbox.length) self.flush();
+      }, function (err) {
+        self.flushing = false;
+        var m = String(err.message || err);
+        // 4xx = the request is malformed or unauthorised; retrying won't help, so drop it
+        // rather than blocking every later write behind it.
+        if (/HTTP 4\d\d/.test(m)) {
+          self.outbox.shift();
+          self.saveOutbox();
+        }
+        status(m);
+      });
+    },
+
+    /** Replace local items with the Sheet's, for a shared view. */
+    pull: function () {
+      var self = this;
+      if (!this.on()) return Promise.reject(new Error('Not connected'));
+      return fetch(this.url + (this.url.indexOf('?') > -1 ? '&' : '?') + 'action=list', {
+        method: 'GET', redirect: 'follow'
+      }).then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      }).then(function (d) {
+        if (!d || d.ok !== true) throw new Error((d && d.error) || 'Bad response');
+        if (Array.isArray(d.items)) {
+          state.items = d.items.map(function (i) {
+            return {
+              id: i.id, kind: i.kind, title: i.title, desc: i.desc || '',
+              who: i.who || '', extra: i.extra || '',
+              votes: Array.isArray(i.votes) ? i.votes : [],
+              done: !!i.done, at: i.at || ''
+            };
+          });
+          persist(); render();
+        }
+        return d.items || [];
+      });
+    }
+  };
+
+  function status(errMsg) {
+    var el = document.getElementById('conn');
+    if (!el) return;
+    if (!api.on()) {
+      el.className = 'conn'; el.textContent = 'local only';
+      el.title = 'Not connected to a Sheet — data stays in this browser';
+      return;
+    }
+    var pending = api.outbox.length;
+    if (errMsg) {
+      el.className = 'conn err';
+      el.textContent = pending ? 'retry (' + pending + ')' : 'error';
+      el.title = errMsg + (pending ? ' — ' + pending + ' change(s) queued, will retry' : '');
+      return;
+    }
+    if (api.flushing || pending) {
+      el.className = 'conn busy';
+      el.textContent = 'saving' + (pending > 1 ? ' (' + pending + ')' : '');
+      el.title = 'Writing to the Sheet…';
+      return;
+    }
+    el.className = 'conn live'; el.textContent = 'live';
+    el.title = 'Connected — submissions go straight to the Google Sheet';
+  }
+
+
+
+  function uid() {
+    return 'i' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  }
+  function me() {
+    return (document.getElementById('who').value || '').trim();
+  }
+  function load() {
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (raw) {
+        var p = JSON.parse(raw);
+        if (p && Array.isArray(p.items)) state = p;
+      }
+    } catch (e) { /* corrupt storage — start fresh */ }
+    state.who = state.who || '';
+  }
+  function persist() {
+    try { localStorage.setItem(KEY, JSON.stringify(state)); return true; }
+    catch (e) { return false; }
+  }
+  function save() {
+    state.session = document.getElementById('sessDate').value;
+    state.who = document.getElementById('who').value;
+    if (persist()) {
+      note((api.on() ? 'Synced to Sheet · ' : 'Saved locally · ') +
+           state.items.length + ' item' + (state.items.length === 1 ? '' : 's'));
+    } else {
+      note('Could not save — storage unavailable');
+    }
+  }
+  function note(msg) {
+    document.getElementById('saveNote').textContent = msg;
+  }
+
+  function add(kind, fields) {
+    var item = {
+      id: uid(), kind: kind, title: fields.title, desc: fields.desc || '',
+      who: fields.who || '', extra: fields.extra || '', votes: [], done: false,
+      at: new Date().toISOString()
+    };
+    state.items.push(item);
+    save(); render();
+    api.send({ action: 'add', item: item, session: state.session || '' });
+  }
+  function find(id) {
+    return state.items.filter(function (i) { return i.id === id; })[0];
+  }
+  function toggleVote(id) {
+    var it = find(id); if (!it) return;
+    var name = me() || 'anon';
+    var at = it.votes.indexOf(name);
+    if (at > -1) it.votes.splice(at, 1); else it.votes.push(name);
+    save(); render();
+    api.send({ action: 'vote', id: id, voter: name });
+  }
+  function toggleDone(id) {
+    var it = find(id); if (!it) return;
+    it.done = !it.done; save(); render();
+    api.send({ action: 'done', id: id, done: it.done });
+  }
+  function remove(id) {
+    var it = find(id); if (!it) return;
+    if (!confirm('Delete "' + it.title + '"?')) return;
+    state.items = state.items.filter(function (i) { return i.id !== id; });
+    save(); render();
+    api.send({ action: 'delete', id: id });
+  }
+
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  }
+
+  function card(it) {
+    var li = el('li', it.done ? 'done' : '');
+
+    if (it.kind === 'learn') {
+      var v = el('div', 'vote' + (it.votes.indexOf(me() || 'anon') > -1 ? ' voted' : ''));
+      v.appendChild(el('span', 'n', String(it.votes.length)));
+      v.appendChild(el('span', 'c', 'vote'));
+      v.title = it.votes.length ? it.votes.join(', ') : 'No votes yet';
+      v.onclick = function () { toggleVote(it.id); };
+      li.appendChild(v);
+    } else {
+      var b = el('div', 'vote');
+      b.style.cursor = 'default';
+      b.appendChild(el('span', 'n', '★'));
+      b.appendChild(el('span', 'c', 'share'));
+      li.appendChild(b);
+    }
+
+    var body = el('div');
+    body.appendChild(el('div', 'title', it.title));
+    if (it.desc) body.appendChild(el('div', 'desc', it.desc));
+    var meta = el('div', 'meta');
+    if (it.who) meta.appendChild(el('span', 'tag', it.who));
+    if (it.extra) meta.appendChild(el('span', 'tag', it.extra));
+    if (it.done) meta.appendChild(el('span', 'tag', it.kind === 'share' ? 'presented' : 'covered'));
+    body.appendChild(meta);
+    li.appendChild(body);
+
+    var acts = el('div', 'acts');
+    var d = el('button', '', it.done ? 'undo' : 'done');
+    d.onclick = function () { toggleDone(it.id); };
+    var x = el('button', 'del', 'delete');
+    x.onclick = function () { remove(it.id); };
+    acts.appendChild(d); acts.appendChild(x);
+    li.appendChild(acts);
+    return li;
+  }
+
+  function render() {
+    var shares = state.items.filter(function (i) { return i.kind === 'share'; });
+    var learns = state.items.filter(function (i) { return i.kind === 'learn'; })
+      .sort(function (a, b) {
+        if (a.done !== b.done) return a.done ? 1 : -1;
+        return b.votes.length - a.votes.length;
+      });
+
+    var sl = document.getElementById('shareList');
+    var ll = document.getElementById('learnList');
+    sl.textContent = ''; ll.textContent = '';
+
+    if (!shares.length) sl.appendChild(el('div', 'empty', 'Nothing yet — what did you try this month?'));
+    shares.forEach(function (i) { sl.appendChild(card(i)); });
+
+    if (!learns.length) ll.appendChild(el('div', 'empty', 'No requests yet — what would you like explained?'));
+    learns.forEach(function (i) { ll.appendChild(card(i)); });
+
+    document.getElementById('shareCount').textContent = String(shares.length);
+    document.getElementById('learnCount').textContent = String(learns.length);
+  }
+
+  document.getElementById('shareForm').onsubmit = function (e) {
+    e.preventDefault();
+    add('share', {
+      title: document.getElementById('sTitle').value.trim(),
+      desc: document.getElementById('sDesc').value.trim(),
+      who: document.getElementById('sWho').value.trim() || me(),
+      extra: document.getElementById('sFormat').value
+    });
+    this.reset();
+    document.getElementById('sTitle').focus();
+  };
+
+  document.getElementById('learnForm').onsubmit = function (e) {
+    e.preventDefault();
+    add('learn', {
+      title: document.getElementById('lTitle').value.trim(),
+      desc: document.getElementById('lDesc').value.trim(),
+      who: document.getElementById('lWho').value.trim(),
+      extra: document.getElementById('lUrgency').value
+    });
+    this.reset();
+    document.getElementById('lTitle').focus();
+  };
+
+  document.getElementById('exportBtn').onclick = function () {
+    save();
+    var blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'ai-session-' + (state.session || 'board').replace(/[^\w-]+/g, '-') + '.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  document.getElementById('importBtn').onclick = function () {
+    document.getElementById('fileInput').click();
+  };
+  document.getElementById('fileInput').onchange = function (e) {
+    var f = e.target.files[0]; if (!f) return;
+    var r = new FileReader();
+    r.onload = function () {
+      try {
+        var p = JSON.parse(r.result);
+        if (!p || !Array.isArray(p.items)) throw new Error('bad shape');
+        var mode = confirm('OK = merge with current board.\nCancel = replace it.');
+        if (mode) {
+          var have = {};
+          state.items.forEach(function (i) { have[i.id] = true; });
+          p.items.forEach(function (i) { if (!have[i.id]) state.items.push(i); });
+        } else {
+          state = p;
+          document.getElementById('sessDate').value = p.session || '';
+        }
+        save(); render();
+      } catch (err) {
+        alert('That file is not a board export.');
+      }
+    };
+    r.readAsText(f);
+    e.target.value = '';
+  };
+
+  /* ---------- Sheet connection controls ---------- */
+
+  /** Turn an opaque fetch failure into the actual cause, where we can tell. */
+  function diagnose(err, url) {
+    var m = String((err && err.message) || err || '');
+    var out = [];
+    if (/\/a\/macros\//.test(url || '')) {
+      out.push('This URL is restricted to your Google Workspace domain (it contains "/a/macros/…"). ' +
+               'It redirects to a sign-in page instead of running the script, so the board cannot reach it. ' +
+               'Redeploy with "Who has access: Anyone" — the working URL has no /a/macros/ in it.');
+    }
+    if (location.protocol === 'file:') {
+      out.push('This page was opened directly from disk (origin "null"), which Google rejects. ' +
+               'Serve it over http instead — run: node test/serve.js — or host it (see GO-LIVE.md).');
+    }
+    if (!out.length && /Failed to fetch|NetworkError|Load failed/i.test(m)) {
+      out.push('Could not reach the script. Usual causes: the deployment is not set to "Anyone", ' +
+               'the URL is not the /exec one, or you are offline.');
+    }
+    return out.length ? out.join(' ') : m;
+  }
+
+  function apiNote(msg, cls) {
+    var n = document.getElementById('apiNote');
+    n.textContent = msg || '';
+    n.className = 'setupnote' + (cls ? ' ' + cls : '');
+  }
+
+  document.getElementById('setupBtn').onclick = function () {
+    var b = document.getElementById('setupBox');
+    b.hidden = !b.hidden;
+    if (!b.hidden) document.getElementById('apiUrl').focus();
+  };
+  document.getElementById('setupCloseBtn').onclick = function () {
+    document.getElementById('setupBox').hidden = true;
+  };
+
+  document.getElementById('apiSaveBtn').onclick = function () {
+    var u = document.getElementById('apiUrl').value.trim();
+    if (!u) { apiNote('Paste the /exec URL first.', 'bad'); return; }
+    // localhost is allowed so test/mock-sheet.js can be used without any Google setup.
+    var isLocal = /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?\//.test(u);
+    if (!isLocal) {
+      if (!/^https:\/\/script\.google(usercontent)?\.com\//.test(u)) {
+        apiNote('That does not look like an Apps Script URL. It should start with https://script.google.com/macros/s/… (or http://127.0.0.1:… for local testing)', 'bad');
+        return;
+      }
+      if (!/\/exec(\?|$)/.test(u)) {
+        apiNote('Use the /exec URL (the deployment), not /dev.', 'bad');
+        return;
+      }
+    }
+    if (/\/a\/macros\//.test(u)) {
+      apiNote('⚠️ That URL is domain-restricted (it contains "/a/macros/"). It will redirect to a ' +
+              'sign-in page rather than running your script. In Apps Script: Deploy ▸ Manage deployments ▸ ' +
+              '✏️ ▸ Who has access: Anyone ▸ New version. The correct URL has no /a/macros/ in it.', 'bad');
+      return;
+    }
+    api.setUrl(u);
+    apiNote('Connected. Testing…');
+    api.pull().then(function (items) {
+      apiNote('✅ Connected — loaded ' + items.length + ' item(s) from the Sheet. New submissions now go straight there.', 'ok');
+      status();
+    }, function (err) {
+      apiNote('⚠️ Saved the URL, but reading the Sheet failed. ' + diagnose(err, u), 'bad');
+      status(String(err.message || err));
+    });
+  };
+
+  document.getElementById('apiTestBtn').onclick = function () {
+    if (!api.on()) { apiNote('Not connected yet — paste a URL and press Connect.', 'bad'); return; }
+    apiNote('Testing…');
+    api.pull().then(function (items) {
+      apiNote('✅ Sheet reachable — ' + items.length + ' item(s) currently stored.' +
+              (api.outbox.length ? ' ' + api.outbox.length + ' queued write(s) will now retry.' : ''), 'ok');
+      api.flush();
+    }, function (err) {
+      apiNote('❌ Could not reach the Sheet. ' + diagnose(err, api.url), 'bad');
+    });
+  };
+
+  document.getElementById('apiResetBtn').onclick = function () {
+    if (!(SHEET_URL || '').trim()) { apiNote('This file has no built-in URL to restore.', 'bad'); return; }
+    try { localStorage.removeItem(URLKEY); } catch (e) {}
+    api.init();
+    document.getElementById('apiUrl').value = api.url;
+    status();
+    apiNote('Restored the Sheet this file was configured with. Reloading…', 'ok');
+    setTimeout(function () { location.reload(); }, 700);
+  };
+
+  document.getElementById('apiClearBtn').onclick = function () {
+    if (!confirm('Disconnect from the Sheet? The board keeps its current items locally, and new submissions stop being written to the Sheet.')) return;
+    api.setUrl('');
+    apiNote('Disconnected — this board is local only again.');
+  };
+
+  /* ---------- Export to Google Sheets (CSV) ---------- */
+
+  // Quote a field for CSV: wrap when it contains comma, quote, or newline; double any quotes.
+  function csvCell(v) {
+    var t = (v == null) ? '' : String(v);
+    return /[",\n\r]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+  }
+
+  function buildCSV() {
+    var head = ['Type', 'Title', 'Details', 'Submitted by', 'Format / urgency',
+                'Votes', 'Voters', 'Status', 'Session', 'Added'];
+    var sess = document.getElementById('sessDate').value || '';
+    var rows = [head];
+
+    // Shares first, then learn requests by descending votes — same order as the board.
+    var shares = state.items.filter(function (i) { return i.kind === 'share'; });
+    var learns = state.items.filter(function (i) { return i.kind === 'learn'; })
+      .sort(function (a, b) { return b.votes.length - a.votes.length; });
+
+    shares.concat(learns).forEach(function (i) {
+      rows.push([
+        i.kind === 'share' ? 'I want to share' : 'I want to learn',
+        i.title,
+        i.desc || '',
+        i.who || '',                       // blank stays blank — anonymity is preserved
+        i.extra || '',
+        i.kind === 'learn' ? i.votes.length : '',
+        i.kind === 'learn' ? i.votes.join(', ') : '',
+        i.done ? (i.kind === 'share' ? 'presented' : 'covered') : 'open',
+        sess,
+        i.at || ''
+      ]);
+    });
+
+    return rows.map(function (r) {
+      return r.map(csvCell).join(',');
+    }).join('\r\n');   // CRLF: what Sheets and Excel both expect
+  }
+
+  function showCsvOut() {
+    var csv = buildCSV();
+    var n = state.items.length;
+    document.getElementById('csvOutPreview').textContent =
+      n ? csv.split('\r\n').slice(0, 6).join('\n') + (n > 5 ? '\n… ' + (n - 5) + ' more row(s)' : '')
+        : '(board is empty — nothing to export)';
+    document.getElementById('csvOutNote').textContent =
+      n ? n + ' item' + (n === 1 ? '' : 's') + ' ready' : 'Nothing to export yet';
+    return csv;
+  }
+
+  document.getElementById('csvOutBtn').onclick = function () {
+    var box = document.getElementById('csvOutBox');
+    box.hidden = !box.hidden;
+    if (!box.hidden) showCsvOut();
+  };
+  document.getElementById('csvOutCloseBtn').onclick = function () {
+    document.getElementById('csvOutBox').hidden = true;
+  };
+
+  document.getElementById('csvCopyBtn').onclick = function () {
+    var csv = buildCSV();
+    if (!state.items.length) {
+      document.getElementById('csvOutNote').textContent = 'Nothing to copy — the board is empty.';
+      return;
+    }
+    var done = function () {
+      document.getElementById('csvOutNote').textContent =
+        '✅ Copied — paste into a Sheet (it will split into columns)';
+    };
+    var failed = function () {
+      // Clipboard API needs a secure context; fall back to selecting the preview.
+      var pre = document.getElementById('csvOutPreview');
+      pre.textContent = csv;
+      var r = document.createRange();
+      r.selectNodeContents(pre);
+      var sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(r);
+      document.getElementById('csvOutNote').textContent =
+        'Clipboard blocked — text is selected below, press Ctrl/Cmd+C';
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(csv).then(done, failed);
+    } else { failed(); }
+  };
+
+  document.getElementById('csvDownBtn').onclick = function () {
+    if (!state.items.length) {
+      document.getElementById('csvOutNote').textContent = 'Nothing to download — the board is empty.';
+      return;
+    }
+    var csv = buildCSV();
+    // BOM so Excel/Sheets read UTF-8 accents correctly
+    var blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'ai-session-' +
+      ((document.getElementById('sessDate').value || 'board').replace(/[^\w-]+/g, '-')) + '.csv';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    document.getElementById('csvOutNote').textContent = '⬇ CSV downloaded';
+  };
+
+  /* ---------- Google Forms / Sheets CSV import ---------- */
+
+  // RFC4180-ish parser: handles quoted fields, embedded commas, newlines, "" escapes.
+  function parseCSV(text) {
+    var rows = [], row = [], val = '', q = false, i, c, n;
+    text = String(text).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    for (i = 0; i < text.length; i++) {
+      c = text.charAt(i);
+      if (q) {
+        if (c === '"') {
+          n = text.charAt(i + 1);
+          if (n === '"') { val += '"'; i++; }
+          else { q = false; }
+        } else { val += c; }
+      } else if (c === '"') { q = true; }
+      else if (c === ',' || c === '\t') { row.push(val); val = ''; }
+      else if (c === '\n') { row.push(val); rows.push(row); row = []; val = ''; }
+      else { val += c; }
+    }
+    if (val !== '' || row.length) { row.push(val); rows.push(row); }
+    return rows.filter(function (r) {
+      return r.some(function (f) { return String(f).trim() !== ''; });
+    });
+  }
+
+  // Decide which column is which, from header text. Falls back to positional.
+  function mapColumns(header) {
+    var m = { kind: -1, title: -1, desc: -1, who: -1, extra: -1, ts: -1 };
+    header.forEach(function (h, i) {
+      var k = String(h).toLowerCase();
+      if (m.ts < 0 && /timestamp|date|submitted/.test(k)) { m.ts = i; return; }
+      if (m.kind < 0 && /share or learn|type|which|category|share\/learn/.test(k)) { m.kind = i; return; }
+      if (m.title < 0 && /title|topic|question|what.*(share|learn|know)|summary|subject/.test(k)) { m.title = i; return; }
+      if (m.desc < 0 && /desc|detail|context|more|note|why|elaborat/.test(k)) { m.desc = i; return; }
+      if (m.who < 0 && /name|who|your name|author|presenter/.test(k)) { m.who = i; return; }
+      if (m.extra < 0 && /format|length|slot|duration|urgen|priority|how long/.test(k)) { m.extra = i; return; }
+    });
+    return m;
+  }
+
+  function looksLikeHeader(row) {
+    return row.some(function (f) {
+      return /timestamp|name|title|topic|question|share|learn|type|format|desc/i.test(String(f));
+    });
+  }
+
+  // Anything that isn't clearly a "share" is treated as a learn request,
+  // because an unattributed question is the safer default to mis-file.
+  function kindOf(raw) {
+    var k = String(raw || '').toLowerCase();
+    if (/share|present|demo|show|teach|surplus/.test(k)) return 'share';
+    if (/learn|want to know|ask|question|deficit|curious/.test(k)) return 'learn';
+    return null;
+  }
+
+  function importRows(text) {
+    var rows = parseCSV(text);
+    if (!rows.length) return { added: 0, skipped: 0, err: 'Nothing to import — the text was empty.' };
+
+    var head = null, body = rows;
+    if (looksLikeHeader(rows[0])) { head = rows[0]; body = rows.slice(1); }
+    if (!body.length) return { added: 0, skipped: 0, err: 'Found a header row but no data rows under it.' };
+
+    var m = head ? mapColumns(head) : { kind: -1, title: -1, desc: -1, who: -1, extra: -1, ts: -1 };
+
+    // Positional fallback when headers are missing or unrecognisable.
+    if (m.title < 0) {
+      var used = [m.kind, m.desc, m.who, m.extra, m.ts];
+      for (var c = 0; c < (body[0] ? body[0].length : 0); c++) {
+        if (used.indexOf(c) === -1) { m.title = c; break; }
+      }
+    }
+    if (m.title < 0) return { added: 0, skipped: 0, err: 'Could not work out which column holds the topic.' };
+
+    // Existing titles, so re-importing the same sheet does not duplicate.
+    var seen = {};
+    state.items.forEach(function (it) {
+      seen[(it.kind + '|' + it.title).toLowerCase().replace(/\s+/g, ' ').trim()] = true;
+    });
+
+    var added = 0, skipped = 0, unknown = 0;
+    body.forEach(function (r) {
+      var title = String(r[m.title] == null ? '' : r[m.title]).trim();
+      if (!title) { skipped++; return; }
+
+      var kind = m.kind > -1 ? kindOf(r[m.kind]) : null;
+      if (!kind) {
+        // No usable type column: infer from the text itself.
+        kind = /\?\s*$|^(how|what|why|when|can|should|is|does|do|any)\b/i.test(title) ? 'learn' : 'share';
+        unknown++;
+      }
+
+      var key = (kind + '|' + title).toLowerCase().replace(/\s+/g, ' ').trim();
+      if (seen[key]) { skipped++; return; }
+      seen[key] = true;
+
+      state.items.push({
+        id: uid(),
+        kind: kind,
+        title: title,
+        desc: m.desc > -1 ? String(r[m.desc] || '').trim() : '',
+        who: m.who > -1 ? String(r[m.who] || '').trim() : '',
+        extra: m.extra > -1 ? String(r[m.extra] || '').trim() : '',
+        votes: [], done: false,
+        at: (m.ts > -1 && r[m.ts]) ? String(r[m.ts]).trim() : new Date().toISOString()
+      });
+      added++;
+    });
+
+    save(); render();
+    return { added: added, skipped: skipped, unknown: unknown, mapped: m, hadHeader: !!head };
+  }
+
+  function describeImport(res) {
+    if (res.err) return res.err;
+    var bits = ['Imported ' + res.added + ' item' + (res.added === 1 ? '' : 's')];
+    if (res.skipped) bits.push(res.skipped + ' skipped (blank or already on the board)');
+    if (res.unknown) bits.push(res.unknown + ' had no type column — inferred from the wording');
+    return bits.join(' · ');
+  }
+
+  document.getElementById('sheetBtn').onclick = function () {
+    var box = document.getElementById('sheetBox');
+    box.hidden = !box.hidden;
+    if (!box.hidden) document.getElementById('csvText').focus();
+  };
+  document.getElementById('sheetCloseBtn').onclick = function () {
+    document.getElementById('sheetBox').hidden = true;
+  };
+  document.getElementById('csvGoBtn').onclick = function () {
+    var t = document.getElementById('csvText').value;
+    if (!t.trim()) { document.getElementById('csvNote').textContent = 'Paste some rows first.'; return; }
+    var res = importRows(t);
+    document.getElementById('csvNote').textContent = describeImport(res);
+    if (!res.err && res.added) document.getElementById('csvText').value = '';
+  };
+  document.getElementById('csvFileBtn').onclick = function () {
+    document.getElementById('csvInput').click();
+  };
+  document.getElementById('csvInput').onchange = function (e) {
+    var f = e.target.files[0]; if (!f) return;
+    var r = new FileReader();
+    r.onload = function () {
+      var res = importRows(r.result);
+      document.getElementById('csvNote').textContent = describeImport(res);
+    };
+    r.readAsText(f);
+    e.target.value = '';
+  };
+
+  document.getElementById('clearBtn').onclick = function () {
+    if (!confirm('Clear every item on this board? Export first if you want a copy.')) return;
+    state.items = []; save(); render();
+  };
+
+  document.getElementById('agendaBtn').onclick = function () {
+    var shares = state.items.filter(function (i) { return i.kind === 'share' && !i.done; });
+    var learns = state.items.filter(function (i) { return i.kind === 'learn' && !i.done; })
+      .sort(function (a, b) { return b.votes.length - a.votes.length; });
+
+    var out = [];
+    out.push('AI Session — ' + (document.getElementById('sessDate').value || 'next session'));
+    out.push('60 minutes · Prompt & Circumstance');
+    out.push('');
+    out.push('00:00  Welcome + what changed since last month (5)');
+    var t = 5;
+    shares.slice(0, 5).forEach(function (s) {
+      var mins = s.extra && s.extra.indexOf('20') > -1 ? 20
+               : s.extra && s.extra.indexOf('10') > -1 ? 10
+               : s.extra && s.extra.indexOf('Just a link') > -1 ? 0 : 5;
+      if (mins === 0) return;
+      var mm = String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0');
+      out.push(mm + '  ' + s.title + (s.who ? ' — ' + s.who : '') + ' (' + mins + ')');
+      t += mins;
+    });
+    var mmq = String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0');
+    out.push(mmq + '  Open floor on the top learn requests (' + Math.max(5, 55 - t) + ')');
+    out.push('');
+    if (learns.length) {
+      out.push('Top requests to cover:');
+      learns.slice(0, 5).forEach(function (l, i) {
+        out.push('  ' + (i + 1) + '. [' + l.votes.length + (l.votes.length === 1 ? ' vote' : ' votes') + '] ' + l.title + (l.who ? ' — asked by ' + l.who : ''));
+      });
+      out.push('');
+    }
+    var linkOnly = shares.filter(function (s) { return s.extra === 'Just a link'; });
+    if (linkOnly.length) {
+      out.push('Shared without a talk (read at your leisure):');
+      linkOnly.forEach(function (s) { out.push('  · ' + s.title + (s.who ? ' — ' + s.who : '')); });
+      out.push('');
+    }
+    out.push('Unclaimed requests carry over to next month.');
+
+    document.getElementById('agendaOut').textContent = out.join('\n');
+    document.getElementById('agendaBox').hidden = false;
+    document.getElementById('agendaBox').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  };
+
+  ['sessDate', 'who'].forEach(function (id) {
+    document.getElementById(id).addEventListener('change', function () { save(); render(); });
+  });
+
+  load();
+  api.init();
+  if (/\/a\/macros\//.test(api.url || '')) {
+    var dw = document.createElement('div');
+    dw.className = 'filewarn';
+    dw.innerHTML = '<strong>This SHEET_URL is domain-restricted and will not work.</strong> ' +
+      'It contains <code>/a/macros/</code>, so it redirects to a Google sign-in page instead of running ' +
+      'your script — that is the cause of the CORS error. Redeploy with ' +
+      '<em>Deploy &rsaquo; Manage deployments &rsaquo; ✏️ &rsaquo; Who has access: <strong>Anyone</strong> &rsaquo; New version</em>, ' +
+      'then paste the new URL (it will have no <code>/a/macros/</code> in it). See CORS-FIX.md.';
+    document.querySelector('main').insertBefore(dw, document.querySelector('main').firstChild);
+  }
+  if (location.protocol === 'file:' && api.on()) {
+    var w = document.createElement('div');
+    w.className = 'filewarn';
+    w.innerHTML = '<strong>Opened from disk — Sheet sync will not work.</strong> ' +
+      'Browsers give <code>file://</code> pages a "null" origin, which Google blocks. ' +
+      'Run <code>node test/serve.js</code> and open <code>http://localhost:8080</code>, or host the file ' +
+      '(see GO-LIVE.md). The board still works locally in the meantime.';
+    document.querySelector('main').insertBefore(w, document.querySelector('main').firstChild);
+  }
+  document.getElementById('sessDate').value = state.session || '';
+  document.getElementById('who').value = state.who || '';
+  document.getElementById('apiUrl').value = api.url || '';
+  render();
+  status();
+  if (api.on()) {
+    // Sheet is the shared source of truth: adopt it on load, then drain any queued writes.
+    api.pull().then(function () { api.flush(); }, function (err) {
+      status(String(err.message || err));
+    });
+  }
+  window.addEventListener('online', function () { api.flush(); });
+  note(state.items.length ? 'Loaded ' + state.items.length + ' item(s) from this browser' : 'Empty board');
+})();
+</script>
+</body>
+</html>
